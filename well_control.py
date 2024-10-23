@@ -1,0 +1,135 @@
+# Pressure Switch controls pump run.
+# Pump current is compared 30 seconds after pump start, if pump current below Pump_Min_I
+# Pump will be stopped for 15 minutes 
+#  
+# Triac output to motor relay 
+# Triac output to Dry Well local indicator lamp
+
+# Output pump current to MQTT once every 10 seconds
+# Output pressure switch state and drywell state to MQTT when it changes
+
+# Pump_Low_I_Timer 30 second delay
+# Dry_Well_Timer 15 minutes
+# Temperature information and pressure values will be added in future
+import random
+import asyncio
+import megabas as m
+import time
+import sys
+import json
+from Adafruit_IO import MQTTClient
+
+ADAFRUIT_IO_KEY = 'my_adafruit_key'
+ADAFRUIT_IO_USERNAME = 'my_adafruit_user'
+# jakefreese/feeds/ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump
+# jakefreese/feeds/ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump-i
+# jakefreese/feeds/ar-hq-trailer-park-well.ar-hq-trailer-park-dry-well-delay
+
+
+# Define callback functions which will be called when certain events happen.
+def connected(client):
+    # Connected function will be called when the client is connected to Adafruit IO.
+    # This is a good place to subscribe to feed changes.  The client parameter
+    # passed to this function is the Adafruit IO MQTT client so you can make
+    # calls against it easily.
+    print('Connected to Adafruit IO!  Listening for DemoFeed changes...')
+    # Subscribe to changes on a feed named DemoFeed.
+    client.subscribe('DemoFeed')
+
+def disconnected(client):
+    # Disconnected function will be called when the client disconnects.
+    print('Disconnected from Adafruit IO!')
+    sys.exit(1)
+
+def message(client, feed_id, payload):
+    # Message function will be called when a subscribed feed has a new value.
+    # The feed_id parameter identifies the feed, and the payload parameter has
+    # the new value.
+    print('Feed {0} received new value: {1}'.format(feed_id, payload))
+
+# Setup the callback functions defined above.
+
+client = MQTTClient(ADAFRUIT_IO_USERNAME, ADAFRUIT_IO_KEY)
+
+client.on_connect    = connected
+client.on_disconnect = disconnected
+client.on_message    = message
+
+# Connect to the Adafruit IO server.
+client.connect()
+
+def setTriac(output, relay, state):
+    # Placeholder function to control the triac output
+    print(f"Setting Triac: output={output}, relay={relay}, state={state}")
+
+Pump_Low_I_time = int(30) # 30 Seconds
+Dry_Well_Time = int(900)  # 900 Seconds 15min
+
+# Set the BAS inputs and outputs
+Well_Run_output = None            # BAS DO 1
+Dry_Well_Lamp = None    # BAS DO 2
+Pressure_switch = None  # BAS DI 1
+Pump_I = None           # BAS AI 2 
+
+
+Pump_Low_I = 0          # Initialize Pump_Low_I
+Dry_Well = 0            # Initialize Dry_Well
+Pump_Min_I = 8          # Initialize Pump_Min_I 8 Amps minimum current
+Well_Run = 0            # Initialize Well_Run
+
+async def update_sensor_values():
+    global Pressure_switch, Pump_I
+    while True:
+        Pressure_switch = m.read_digital_input(1)  # Read from BAS DI 1
+        Pump_I = m.read_analog_input(2)            # Read from BAS AI 2
+        await asyncio.sleep(1)
+
+# Start the sensor update task
+asyncio.create_task(update_sensor_values())
+
+
+async def delay_pump_low_i():
+    print("Starting 30-second delay...")
+    if Pressure_switch == 1 and Pump_I < Pump_Min_I:
+        await asyncio.sleep(Pump_Low_I_time)
+        print(f"Pump_Low_I after delay: {Pump_Low_I}")
+        # Start the dry well delay as an asyncio task
+        asyncio.create_task(dry_well_delay())
+
+
+async def dry_well_delay():
+    print("Starting 15-minute dry well delay, and shutting down pump...")
+    global Well_Run
+    Well_Run = 0
+    global Dry_Well_in
+    Dry_Well_in = 1
+    m.setTriac(1,2,1) 
+    await asyncio.sleep(Dry_Well_Time)
+    print("Dry well delay expired.")
+    Dry_Well_in = 0
+    m.setTriac(1,2,0) 
+
+async def control_pump():
+    global Dry_Well_in, Pressure_switch
+    while True:
+        if Dry_Well_in == 0 and Pressure_switch == 1:
+            m.setTriac(1, 1, 1)
+        else:
+            m.setTriac(1, 1, 0)
+        await asyncio.sleep(1)
+
+    # Start the control pump task
+    asyncio.create_task(control_pump())
+
+m.wdtSetPeriod(1, 1800)
+
+client.loop_background()
+# Now send new values every 10 seconds.
+print('Publishing a new message every 10 seconds (press Ctrl-C to quit)...')
+while True:
+
+    print('Publishing'(Well_Run(), Pump_I(), Dry_Well_in()))
+    client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump', Well_Run())
+    client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump-i', Pump_I())
+    client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-dry-well-delay', Dry_Well_in())
+    time.sleep(10)
