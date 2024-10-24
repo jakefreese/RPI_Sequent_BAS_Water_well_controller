@@ -19,8 +19,8 @@ import sys
 import json
 from Adafruit_IO import MQTTClient
 
-ADAFRUIT_IO_KEY = 'my_adafruit_key'
-ADAFRUIT_IO_USERNAME = 'my_adafruit_user'
+ADAFRUIT_IO_KEY = '*******************'
+ADAFRUIT_IO_USERNAME = '**************'
 # jakefreese/feeds/ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump
 # jakefreese/feeds/ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump-i
 # jakefreese/feeds/ar-hq-trailer-park-well.ar-hq-trailer-park-dry-well-delay
@@ -32,9 +32,9 @@ def connected(client):
     # This is a good place to subscribe to feed changes.  The client parameter
     # passed to this function is the Adafruit IO MQTT client so you can make
     # calls against it easily.
-    print('Connected to Adafruit IO!  Listening for DemoFeed changes...')
+    print('Connected to Adafruit IO!  Listening for changes...')
     # Subscribe to changes on a feed named DemoFeed.
-    client.subscribe('DemoFeed')
+    client.subscribe('jakefreese')
 
 def disconnected(client):
     # Disconnected function will be called when the client disconnects.
@@ -85,7 +85,7 @@ async def update_sensor_values():
         await asyncio.sleep(1)
 
 # Start the sensor update task
-asyncio.create_task(update_sensor_values())
+# asyncio.create_task(update_sensor_values())
 
 
 async def delay_pump_low_i():
@@ -128,8 +128,9 @@ client.loop_background()
 print('Publishing a new message every 10 seconds (press Ctrl-C to quit)...')
 while True:
 
-    print('Publishing'(Well_Run(), Pump_I(), Dry_Well_in()))
-    client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump', Well_Run())
-    client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump-i', Pump_I())
-    client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-dry-well-delay', Dry_Well_in())
+    print('Publishing')
+    client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump', Well_Run)
+    client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump-i', Pump_I)
+    client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-dry-well-delay', Dry_Well)
     time.sleep(10)
+
