@@ -71,12 +71,16 @@ Dry_Well_Time = int(900)  # 900 Seconds 15min
 Input_Read_time = int(1)  # 1 Second
 
 # Set the BAS inputs and outputs
+global Pressure_switch
+global Pump_I
+global Pump_Low_I
+global Dry_Well_in
+global Well_Run
 Well_Run_output = m.setTriac(1,1,0)            # BAS DO 1
 Dry_Well_Lamp = m.setTriac(1,2,0)    # BAS DO 2
 Pressure_switch = m.getContactCh(1,1)  # BAS DI 1
 Pump_I = m.getUIn(1,2)           # BAS AI 2 
-
-
+Dry_Well_in = 0
 Pump_Low_I = 0          # Initialize Pump_Low_I
 Dry_Well = 0            # Initialize Dry_Well
 Pump_Min_I = 8          # Initialize Pump_Min_I 8 Amps minimum current
@@ -84,7 +88,6 @@ Well_Run = 0            # Initialize Well_Run
 RUN = 1
 
 async def update_sensor_values():
-    global Pressure_switch, Pump_I
     while RUN == 1:
         Pressure_switch = m.getContactCh(1,1)  # Read from BAS DI 1
         Pump_I = m.getUIn(1,2)            # Read from BAS AI 2
@@ -94,7 +97,6 @@ async def update_sensor_values():
 
 
 async def control_pump():
-    global Dry_Well_in, Pressure_switch
     if Dry_Well_in == 0 & Pressure_switch == 1:
             m.setTriac(1, 1, 1)
     else:
@@ -118,10 +120,6 @@ async def delay_pump_low_i():
 async def dry_well_delay():
     print("Starting 15-minute dry well delay, and shutting down pump...")
     # Dry well delay to shut down pump for 15 minutes if pump current is below Pump_Min_I
-    global Well_Run
-    Well_Run = 0
-    global Dry_Well_in
-    Dry_Well_in = 1
     m.setTriac(1,2,1) 
     await asyncio.sleep(Dry_Well_Time)
     print("Dry well delay expired.")
