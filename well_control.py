@@ -11,12 +11,13 @@
 # Pump_Low_I_Timer 30 second delay
 # Dry_Well_Timer 15 minutes
 # Temperature information and pressure values will be added in future
-import random
+
+# import random
 import asyncio
 import megabas as m
 import time
 import sys
-import json
+# import json
 from Adafruit_IO import MQTTClient
 
 ADAFRUIT_IO_KEY = 'my adafruit key'
@@ -80,26 +81,43 @@ Pump_Low_I = 0          # Initialize Pump_Low_I
 Dry_Well = 0            # Initialize Dry_Well
 Pump_Min_I = 8          # Initialize Pump_Min_I 8 Amps minimum current
 Well_Run = 0            # Initialize Well_Run
+RUN = 1
 
 async def update_sensor_values():
     global Pressure_switch, Pump_I
-    while True:
+    while RUN == 1:
         Pressure_switch = m.getContactCh(1,1)  # Read from BAS DI 1
         Pump_I = m.getUIn(1,2)            # Read from BAS AI 2
-        await asyncio.sleep(Input_Read_time())
+        await asyncio.sleep(Input_Read_time)
+        # start the sensor update task
         asyncio.create_task(update_sensor_values())
+
+
+async def control_pump():
+    global Dry_Well_in, Pressure_switch
+    if Dry_Well_in == 0 & Pressure_switch == 1:
+            m.setTriac(1, 1, 1)
+    else:
+            m.setTriac(1, 1, 0)
+    await asyncio.sleep(Input_Read_time)
+    # start the pump control task
+    asyncio.create_task(control_pump())
 
 
 async def delay_pump_low_i():
     print("Starting 30-second delay...")
+    # Pump protection to compare pump input current and fixed value of Pump_Min_I
+    # Pump_Low_I_time = 30 seconds delay to compare pump current after Pressure_switch is on
     if Pressure_switch == 1 and Pump_I < Pump_Min_I:
         await asyncio.sleep(Pump_Low_I_time)
         print(f"Pump_Low_I after delay: {Pump_Low_I}")
+        # start the delay pump low i task
         asyncio.create_task(dry_well_delay())
 
 
 async def dry_well_delay():
     print("Starting 15-minute dry well delay, and shutting down pump...")
+    # Dry well delay to shut down pump for 15 minutes if pump current is below Pump_Min_I
     global Well_Run
     Well_Run = 0
     global Dry_Well_in
@@ -109,16 +127,9 @@ async def dry_well_delay():
     print("Dry well delay expired.")
     Dry_Well_in = 0
     m.setTriac(1,2,0) 
+    # start the dry well delay task
     asyncio.create_task(dry_well_delay())
 
-async def control_pump():
-    global Dry_Well_in, Pressure_switch
-    if Dry_Well_in == 0 & Pressure_switch == 1:
-            m.setTriac(1, 1, 1)
-    else:
-            m.setTriac(1, 1, 0)
-    await asyncio.sleep(1)
-    asyncio.create_task(control_pump())
 
 m.wdtSetPeriod(1, 1800)
 
