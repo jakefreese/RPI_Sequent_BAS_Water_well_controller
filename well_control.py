@@ -87,7 +87,6 @@ async def update_sensor_values():
         Pressure_switch = m.getContactCh(1,1)  # Read from BAS DI 1
         Pump_I = m.getUIn(1,2)            # Read from BAS AI 2
         await asyncio.sleep(Input_Read_time())
-        # Start the sensor update task
         asyncio.create_task(update_sensor_values())
 
 
@@ -96,7 +95,6 @@ async def delay_pump_low_i():
     if Pressure_switch == 1 and Pump_I < Pump_Min_I:
         await asyncio.sleep(Pump_Low_I_time)
         print(f"Pump_Low_I after delay: {Pump_Low_I}")
-        # Start the dry well delay as an asyncio task
         asyncio.create_task(dry_well_delay())
 
 
@@ -111,17 +109,15 @@ async def dry_well_delay():
     print("Dry well delay expired.")
     Dry_Well_in = 0
     m.setTriac(1,2,0) 
+    asyncio.create_task(dry_well_delay())
 
 async def control_pump():
     global Dry_Well_in, Pressure_switch
-    while True:
-        if Dry_Well_in == 0 and Pressure_switch == 1:
+    if Dry_Well_in == 0 & Pressure_switch == 1:
             m.setTriac(1, 1, 1)
-        else:
+    else:
             m.setTriac(1, 1, 0)
-        await asyncio.sleep(1)
-
-    # Start the control pump task
+    await asyncio.sleep(1)
     asyncio.create_task(control_pump())
 
 m.wdtSetPeriod(1, 1800)
