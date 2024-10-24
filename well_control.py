@@ -64,6 +64,7 @@ def setTriac(output, relay, state):
 
 Pump_Low_I_time = int(30) # 30 Seconds
 Dry_Well_Time = int(900)  # 900 Seconds 15min
+Input_Read_time = int(1)  # 1 Second
 
 # Set the BAS inputs and outputs
 Well_Run_output = None            # BAS DO 1
@@ -82,10 +83,9 @@ async def update_sensor_values():
     while True:
         Pressure_switch = m.read_digital_input(1)  # Read from BAS DI 1
         Pump_I = m.read_analog_input(2)            # Read from BAS AI 2
-        await asyncio.sleep(1)
-
-# Start the sensor update task
-# asyncio.create_task(update_sensor_values())
+        await asyncio.sleep(Input_Read_time())
+        # Start the sensor update task
+        asyncio.create_task(update_sensor_values())
 
 
 async def delay_pump_low_i():
@@ -129,8 +129,10 @@ print('Publishing a new message every 10 seconds (press Ctrl-C to quit)...')
 while True:
 
     print('Publishing')
+    print('Well_Run:'())
+    print('Pump_I:'())
+    print('Dry_Well:'())
     client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump', Well_Run)
     client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump-i', Pump_I)
     client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-dry-well-delay', Dry_Well)
     time.sleep(10)
-
