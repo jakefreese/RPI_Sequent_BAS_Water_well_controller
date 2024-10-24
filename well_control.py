@@ -19,11 +19,11 @@ import sys
 import json
 from Adafruit_IO import MQTTClient
 
-ADAFRUIT_IO_KEY = '*******************'
-ADAFRUIT_IO_USERNAME = '**************'
-# jakefreese/feeds/ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump
-# jakefreese/feeds/ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump-i
-# jakefreese/feeds/ar-hq-trailer-park-well.ar-hq-trailer-park-dry-well-delay
+ADAFRUIT_IO_KEY = 'my adafruit key'
+ADAFRUIT_IO_USERNAME = 'my adafruit user'
+# my adafruit user/feeds/ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump
+# my adafruit user/feeds/ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump-i
+# my adafruit user/feeds/ar-hq-trailer-park-well.ar-hq-trailer-park-dry-well-delay
 
 
 # Define callback functions which will be called when certain events happen.
@@ -34,7 +34,7 @@ def connected(client):
     # calls against it easily.
     print('Connected to Adafruit IO!  Listening for changes...')
     # Subscribe to changes on a feed named DemoFeed.
-    client.subscribe('jakefreese')
+    client.subscribe('my adafruit user')
 
 def disconnected(client):
     # Disconnected function will be called when the client disconnects.
@@ -67,10 +67,10 @@ Dry_Well_Time = int(900)  # 900 Seconds 15min
 Input_Read_time = int(1)  # 1 Second
 
 # Set the BAS inputs and outputs
-Well_Run_output = None            # BAS DO 1
-Dry_Well_Lamp = None    # BAS DO 2
-Pressure_switch = None  # BAS DI 1
-Pump_I = None           # BAS AI 2 
+Well_Run_output = 0            # BAS DO 1
+Dry_Well_Lamp = 0    # BAS DO 2
+Pressure_switch = 0  # BAS DI 1
+Pump_I = 0           # BAS AI 2 
 
 
 Pump_Low_I = 0          # Initialize Pump_Low_I
@@ -81,8 +81,8 @@ Well_Run = 0            # Initialize Well_Run
 async def update_sensor_values():
     global Pressure_switch, Pump_I
     while True:
-        Pressure_switch = m.read_digital_input(1)  # Read from BAS DI 1
-        Pump_I = m.read_analog_input(2)            # Read from BAS AI 2
+        Pressure_switch = m.getContactCh(1,1)  # Read from BAS DI 1
+        Pump_I = m.getUIn(1,2)            # Read from BAS AI 2
         await asyncio.sleep(Input_Read_time())
         # Start the sensor update task
         asyncio.create_task(update_sensor_values())
@@ -129,9 +129,10 @@ print('Publishing a new message every 10 seconds (press Ctrl-C to quit)...')
 while True:
 
     print('Publishing')
-    print('Well_Run:'())
-    print('Pump_I:'())
-    print('Dry_Well:'())
+    print("Well_Run: ", Well_Run)
+    print("Pump_I: ", Pump_I)
+    print("Dry_Well: ", Dry_Well)
+    print("Pressure_switch: ", Pressure_switch)
     client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump', Well_Run)
     client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump-i', Pump_I)
     client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-dry-well-delay', Dry_Well)
