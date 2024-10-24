@@ -20,10 +20,10 @@ import json
 from Adafruit_IO import MQTTClient
 
 ADAFRUIT_IO_KEY = 'my adafruit key'
-ADAFRUIT_IO_USERNAME = 'my adafruit user'
-# my adafruit user/feeds/ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump
-# my adafruit user/feeds/ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump-i
-# my adafruit user/feeds/ar-hq-trailer-park-well.ar-hq-trailer-park-dry-well-delay
+ADAFRUIT_IO_USERNAME = 'my username'
+# jakefreese/feeds/ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump
+# jakefreese/feeds/ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump-i
+# jakefreese/feeds/ar-hq-trailer-park-well.ar-hq-trailer-park-dry-well-delay
 
 
 # Define callback functions which will be called when certain events happen.
@@ -34,7 +34,7 @@ def connected(client):
     # calls against it easily.
     print('Connected to Adafruit IO!  Listening for changes...')
     # Subscribe to changes on a feed named DemoFeed.
-    client.subscribe('my adafruit user')
+    client.subscribe('my username')
 
 def disconnected(client):
     # Disconnected function will be called when the client disconnects.
@@ -61,16 +61,19 @@ client.connect()
 def setTriac(output, relay, state):
     # Placeholder function to control the triac output
     print(f"Setting Triac: output={output}, relay={relay}, state={state}")
+    
+def getTriac(stack, state):
+    print(f"Stack: stack={stack}, state={state}")
 
 Pump_Low_I_time = int(30) # 30 Seconds
 Dry_Well_Time = int(900)  # 900 Seconds 15min
 Input_Read_time = int(1)  # 1 Second
 
 # Set the BAS inputs and outputs
-Well_Run_output = 0            # BAS DO 1
-Dry_Well_Lamp = 0    # BAS DO 2
-Pressure_switch = 0  # BAS DI 1
-Pump_I = 0           # BAS AI 2 
+Well_Run_output = m.setTriac(1,1,0)            # BAS DO 1
+Dry_Well_Lamp = m.setTriac(1,2,0)    # BAS DO 2
+Pressure_switch = m.getContactCh(1,1)  # BAS DI 1
+Pump_I = m.getUIn(1,2)           # BAS AI 2 
 
 
 Pump_Low_I = 0          # Initialize Pump_Low_I
@@ -133,6 +136,8 @@ while True:
     print("Pump_I: ", Pump_I)
     print("Dry_Well: ", Dry_Well)
     print("Pressure_switch: ", Pressure_switch)
+    print("Well Run Triac:", getTriac(1,1))
+    print("Dry Well Triac:", getTriac(1,2))
     client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump', Well_Run)
     client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump-i', Pump_I)
     client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-dry-well-delay', Dry_Well)
