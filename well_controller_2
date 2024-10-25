@@ -1,0 +1,99 @@
+import asyncio
+import megabas as m
+import time
+import sys
+from Adafruit_IO import MQTTClient
+
+ADAFRUIT_IO_KEY = 'my adafruit key'
+ADAFRUIT_IO_USERNAME = 'my username'
+
+class WellController:
+    def __init__(self):
+        self.Pressure_switch = 0
+        self.Pump_I = 0
+        self.Pump_Low_I = 0
+        self.Dry_Well_in = 0
+        self.Dry_Well = 0
+        self.Pump_Min_I = 8
+        self.Well_Run = 0
+        self.RUN = 1
+
+        self.Well_Run_output = m.setTriac(1, 1, 0)
+        self.Dry_Well_Lamp = m.setTriac(1, 2, 0)
+
+        self.Pump_Low_I_time = 30  # 30 Seconds
+        self.Dry_Well_Time = 900  # 900 Seconds 15min
+        self.Input_Read_time = 1  # 1 Second
+
+        self.client = MQTTClient(ADAFRUIT_IO_USERNAME, ADAFRUIT_IO_KEY)
+        self.client.on_connect = self.connected
+        self.client.on_disconnect = self.disconnected
+        self.client.on_message = self.message
+
+        self.client.connect()
+        self.client.loop_background()
+
+    def connected(self, client):
+        print('Connected to Adafruit IO! Listening for changes...')
+        client.subscribe(f'{ADAFRUIT_IO_USERNAME}/feeds/#')
+
+    def disconnected(self, client):
+        print('Disconnected from Adafruit IO!')
+        sys.exit(1)
+
+    def message(self, client, feed_id, payload):
+        print(f'Feed {feed_id} received new value: {payload}')
+
+    async def update_sensor_values(self):
+        while self.RUN == 1:
+            self.Pressure_switch = m.getContactCh(1, 1)
+            self.Pump_I = m.getUIn(1, 2)
+            await asyncio.sleep(self.Input_Read_time)
+
+    async def control_pump(self):
+        while self.RUN == 1:
+            if self.Dry_Well_in == 0 and self.Pressure_switch == 1:
+                m.setTriac(1, 1, 1)
+            else:
+                m.setTriac(1, 1, 0)
+            await asyncio.sleep(self.Input_Read_time)
+
+    async def delay_pump_low_i(self):
+        while self.RUN == 1:
+            if self.Pressure_switch == 1 and self.Pump_I < self.Pump_Min_I:
+                await asyncio.sleep(self.Pump_Low_I_time)
+                if self.Pump_I < self.Pump_Min_I:
+                    await self.dry_well_delay()
+            await asyncio.sleep(self.Input_Read_time)
+
+    async def dry_well_delay(self):
+        print("Starting 15-minute dry well delay, and shutting down pump...")
+        m.setTriac(1, 2, 1)
+        await asyncio.sleep(self.Dry_Well_Time)
+        print("Dry well delay expired.")
+        self.Dry_Well_in = 0
+        m.setTriac(1, 2, 0)
+
+    async def run(self):
+        await asyncio.gather(
+            self.update_sensor_values(),
+            self.control_pump(),
+            self.delay_pump_low_i()
+        )
+
+    def publish_data(self):
+        while True:
+            print('Publishing')
+            print("Well_Run: ", self.Well_Run)
+            print("Pump_I: ", self.Pump_I)
+            print("Dry_Well: ", self.Dry_Well)
+            print("Pressure_switch: ", self.Pressure_switch)
+            self.client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump', self.Well_Run)
+            self.client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump-i', self.Pump_I)
+            self.client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-dry-well-delay', self.Dry_Well)
+            time.sleep(10)
+
+if __name__ == "__main__":
+    well_controller = WellController()
+    asyncio.run(well_controller.run())
+    well_controller.publish_data()
