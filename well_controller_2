@@ -4,8 +4,8 @@ import time
 import sys
 from Adafruit_IO import MQTTClient
 
-ADAFRUIT_IO_KEY = 'my adafruit key'
-ADAFRUIT_IO_USERNAME = 'my username'
+ADAFRUIT_IO_KEY = 'my key'
+ADAFRUIT_IO_USERNAME = 'my user'
 
 # Define callback functions which will be called when certain events happen.
 def connected(client):
@@ -15,7 +15,7 @@ def connected(client):
     # calls against it easily.
     print('Connected to Adafruit IO!  Listening for changes...')
     # Subscribe to changes on a feed named DemoFeed.
-    client.subscribe('my username')
+    client.subscribe('my user')
 
 def disconnected(client):
     # Disconnected function will be called when the client disconnects.
@@ -50,36 +50,59 @@ Input_Read_time = int(1)  # 1 Second
 print_variables_time = int(5)  # 5 Seconds
 
 # Set the BAS inputs and outputs
-Well_Run_output = m.setTriac(1,1)            # BAS Traic 1
-Dry_Well_Lamp = m.setTriac(1,2)     # BAS Triac 2
+Well_Run_output = m.setTriac(1,1,0)            # BAS Traic 1
+Dry_Well_Lamp = m.setTriac(1,2,0)     # BAS Triac 2
 Pressure_switch = m.getContactCh(1,1)  # BAS DI 1
 Pump_I = m.getUIn(1,2)          # BAS AI 2 
 #RUN = m.getContactCh(1,3) #BAS DI 3
 
 # Variables
-Pump_Low_I = 0          # Initialize Pump_Low_I
-Dry_Well = 0            # Initialize Dry_Well
-Pump_Min_I = 8.0        # Initialize Pump_Min_I 8.0 Amps minimum current
-Well_Run = 0            # Initialize Well_Run
-RUN = 1
+Pump_Low_I = int(0)          # Initialize Pump_Low_I
+Dry_Well = int(0)            # Initialize Dry_Well
+Pump_Min_I = float(8.0)        # Initialize Pump_Min_I 8.0 Amps minimum current
+Well_Run = int(0)            # Initialize Well_Run
+RUN = int(1)
 
+client.loop_background()
+# Now send new values every 10 seconds.
+print('Publishing a new message every 10 seconds (press Ctrl-C to quit)...')
+while True:
+
+    print('Publishing')
+    print("Well_Run: ", Well_Run)
+    print("Pump_I: ", Pump_I)
+    print("Dry_Well: ", Dry_Well)
+    print("Pressure_switch: ", Pressure_switch)
+#    print("Well Run Triac:", m.getTriac(1,1))
+#    print("Dry Well Triac:", m.getTriac(1,2))
+    client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump', Well_Run)
+    client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump-i', Pump_I)
+    client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-dry-well-delay', Dry_Well)
+    time.sleep(10)
+    
+    
 while RUN == 1:
     Pressure_switch = m.getContactCh(1,1)  # Read from BAS DI 1
     Pump_I = m.getUIn(1,2)            # Read from BAS AI 2
-    time.sleep(0.5)
-
-    if Pressure_switch == 1 & Dry_Well == 0:
+    time.sleep(0.25)
+    print("run sequence")
+    
+    if Pressure_switch == 1 and Dry_Well == 0:
         Well_Run = 1
+        print("Well RUN", Well_Run)
+        print("Pressure Switch", Pressure_switch)
+        print("Dry Well", Dry_Well)
         m.setTriac(1,1,1)
-        print("WELL RUN", Well_Run)
+
     else:
         Well_Run = 0
         m.setTriac(1,1,0)
-        print("WELL RUN", Well_Run)
+        print("Well STANDBY")
 
-    while Pressure_switch ==1 & Pump_I < Pump_Min_I:
+
+while Pressure_switch ==1:
+    if Pump_I < Pump_Min_I:
         Pump_Low_I = 1
-        print("Pump Low I", Pump_Low_I) 
         asyncio.create_task(start_dry_well_timer())
         async def start_dry_well_timer():
             await asyncio.sleep(Pump_Low_I_time)
@@ -98,21 +121,7 @@ while RUN == 1:
         m.setTriac(1,2,1)
         print("Dry Well", Dry_Well)
 
+
 m.wdtSetPeriod(1, 1800)
 
-client.loop_background()
-# Now send new values every 10 seconds.
-print('Publishing a new message every 10 seconds (press Ctrl-C to quit)...')
-while True:
 
-    print('Publishing')
-    print("Well_Run: ", Well_Run)
-    print("Pump_I: ", Pump_I)
-    print("Dry_Well: ", Dry_Well)
-    print("Pressure_switch: ", Pressure_switch)
-    print("Well Run Triac:", m.getTriac(1,1))
-    print("Dry Well Triac:", m.getTriac(1,2))
-    client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump', Well_Run)
-    client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump-i', Pump_I)
-    client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-dry-well-delay', Dry_Well)
-    time.sleep(10)
