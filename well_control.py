@@ -56,67 +56,70 @@ Pressure_switch = m.getContactCh(1,1)  # BAS DI 1
 Pump_I = m.getUIn(1,2)          # BAS AI 2 
 #RUN = m.getContactCh(1,3) #BAS DI 3
 
-# Variables
-Pump_Low_I = int(0)          # Initialize Pump_Low_I
-Dry_Well = int(0)       # Initialize Dry_Well as an integer
-Pump_Min_I = float(8.0)        # Initialize Pump_Min_I 8.0 Amps minimum current
-Well_Run = int(0)            # Initialize Well_Run
-RUN = int(1)         # Initialize RUN
+class WellController:
+    def __init__(self):
+        self.Pump_Low_I = 0          # Initialize Pump_Low_I
+        self.Dry_Well = 0       # Initialize Dry_Well as an integer
+        self.Pump_Min_I = 8.0        # Initialize Pump_Min_I 8.0 Amps minimum current
+        self.Well_Run = 0            # Initialize Well_Run
+        self.RUN = 1         # Initialize RUN
 
-while RUN == 1:
-    Pressure_switch = m.getContactCh(1,1)  # Read from BAS DI 1
-    Pump_I = m.getUIn(1,2)            # Read from BAS AI 2
-    time.sleep(0.5)
+    async def start_dry_well_timer(self):
+        await asyncio.sleep(Pump_Low_I_time)
+        self.Dry_Well = 1
+        print("Dry_Well set to 1 after 30 seconds")
 
-    if Pressure_switch == 1 and Dry_Well == 0:
-        Well_Run = 1
-        m.setTriac(1,1,1)
-        print("WELL RUN", Well_Run)
-    else:
-        Well_Run = 0
-        m.setTriac(1,1,0)
-        print("WELL RUN", Well_Run)
-        
-    client.loop_background()
-    # Now send new values every 10 seconds.
-    print('Publishing a new message every 10 seconds (press Ctrl-C to quit)...')
-    while True:
-
-        print('Publishing')
-        print("Well_Run: ", Well_Run)
-        print("Pump_I: ", Pump_I)
-        print("Dry_Well: ", Dry_Well)
-        print("Pressure_switch: ", Pressure_switch)
-        print("Well Run Triac:", m.getTriac(1,1))
-        print("Dry Well Triac:", m.getTriac(1,2))
-        client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump', Well_Run)
-        client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump-i', Pump_I)
-        client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-dry-well-delay', Dry_Well)
-        time.sleep(10)
-
-
-
-while Pressure_switch ==1:
-    if Pump_I < Pump_Min_I:
-        Pump_Low_I = 1
-        print("Pump Low I", Pump_Low_I) 
-        asyncio.create_task(start_dry_well_timer())
-        async def start_dry_well_timer():
-            await asyncio.sleep(Pump_Low_I_time)
-            global Dry_Well
-            Dry_Well = 1
-            print("Dry_Well set to 1 after 30 seconds")
-
-    async def reset_dry_well_timer():
+    async def reset_dry_well_timer(self):
         await asyncio.sleep(Dry_Well_Time)
-        global Dry_Well
-        Dry_Well = 0
+        self.Dry_Well = 0
         print("Dry_Well reset to 0 after 15 minutes")
 
-    if Dry_Well == 1:
-        asyncio.create_task(reset_dry_well_timer())
-        m.setTriac(1,2,1)
-        print("Dry Well", Dry_Well)
+    def run(self):
+        while self.RUN == 1:
+            Pressure_switch = m.getContactCh(1,1)  # Read from BAS DI 1
+            Pump_I = m.getUIn(1,2)            # Read from BAS AI 2
+            time.sleep(0.5)
+
+            if Pressure_switch == 1 and self.Dry_Well == 0:
+                self.Well_Run = 1
+                m.setTriac(1,1,1)
+                print("WELL RUN", self.Well_Run)
+            else:
+                self.Well_Run = 0
+                m.setTriac(1,1,0)
+                print("WELL RUN", self.Well_Run)
+
+
+            # Now send new values every 10 seconds.
+            async def publish_data():
+                while True:
+                    print('Publishing a new message every 10 seconds (press Ctrl-C to quit)...')
+                    print('Publishing')
+                    print("Well_Run: ", self.Well_Run)
+                    print("Pump_I: ", Pump_I)
+                    print("Dry_Well: ", self.Dry_Well)
+                    print("Pressure_switch: ", Pressure_switch)
+                    client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump', self.Well_Run)
+                    client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-water-well-pump-i', Pump_I)
+                    client.publish('ar-hq-trailer-park-well.ar-hq-trailer-park-dry-well-delay', self.Dry_Well)
+                    await asyncio.sleep(10)
+
+            asyncio.create_task(publish_data())
+
+            while Pressure_switch == 1:
+                if Pump_I < self.Pump_Min_I:
+                    self.Pump_Low_I = 1
+                    print("Pump Low I", self.Pump_Low_I)
+                    asyncio.create_task(self.start_dry_well_timer())
+
+                if self.Dry_Well == 1:
+                    asyncio.create_task(self.reset_dry_well_timer())
+                    m.setTriac(1,2,1)
+                    print("Dry Well", self.Dry_Well)
+
+if __name__ == "__main__":
+    controller = WellController()
+    controller.run()
 
 m.wdtSetPeriod(1, 1800)
 
