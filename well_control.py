@@ -3,6 +3,13 @@ import megabas as m
 import time
 import sys
 from Adafruit_IO import MQTTClient
+import os
+from dotenv import load_dotenv
+
+   
+
+#api_key = os.getenv("API_KEY")
+#user = os.getenv("DATABASE_PASSWORD")
 
 ADAFRUIT_IO_KEY = 'my adafruit key'
 ADAFRUIT_IO_USERNAME = 'my username'
@@ -39,6 +46,8 @@ client.on_message    = message
 # Connect to the Adafruit IO server.
 client.connect()
 
+load_dotenv()
+
 def setTriac(output, relay, state):
     # Placeholder function to control the triac output
     print(f"Setting Triac: output={output}, relay={relay}, state={state}")
@@ -58,11 +67,11 @@ Pump_I = m.getUIn(1,2)          # BAS AI 2
 
 class WellController:
     def __init__(self):
-        self.Pump_Low_I = 0          # Initialize Pump_Low_I
-        self.Dry_Well = 0            # Initialize Dry_Well as an integer
-        self.Pump_Min_I = 8.0        # Initialize Pump_Min_I 8.0 Amps minimum current
-        self.Well_Run = 0            # Initialize Well_Run
-        self.RUN = 1                 # Initialize RUN
+        self.Pump_Low_I = int(0)          # Initialize Pump_Low_I
+        self.Dry_Well = int(0)            # Initialize Dry_Well as an integer
+        self.Pump_Min_I = float(8.0)        # Initialize Pump_Min_I 8.0 Amps minimum current
+        self.Well_Run = int(0)            # Initialize Well_Run
+        self.RUN = int(1)                 # Initialize RUN
 
     async def run(self):
         while self.RUN == 1:
@@ -80,7 +89,9 @@ class WellController:
                 self.Well_Run = 0
                 m.setTriac(1,1,0)
                 print("WELL RUN", self.Well_Run)
-                
+            await asyncio.sleep(Input_Read_time)
+            asyncio.create_task(self.check_pump_current(Pressure_switch, Pump_I))
+
         # When pump is running check the pump current, it must be greater than 8.0 Amps
         #30 second delay before action is taken
         while Pressure_switch == 1:
