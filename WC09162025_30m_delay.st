@@ -23,7 +23,7 @@ PROGRAM Well_Control
     Dry_Well_Count : INT := 1000;
     Low_I_Delay : TIME;
     Dry_Well_Wait_Delay : TIME;
-    Dry_Well_Wait_Delay_TIME : INT := 10;
+    Dry_Well_Wait_Delay_TIME : INT := 30;
   END_VAR
   VAR
     Dry_Well_Wait_Delay_MQTT AT %QW5 : INT;
